@@ -121,3 +121,47 @@ ORDER BY total_facturado DESC;
 GO
 -- Hallazgo: el canal Minorista (menos de 3 unidades) factura $5.310,00 en 6 ventas
 -- y el Mayorista $1.134,00 en 4 (aunque mueve más unidades: 20 vs 9). Ojo: canal simulado.
+
+-- =====================================================================
+-- BLOQUE APARTE - DATOS DE PRUEBA para C2 y C3
+-- Las consultas de arriba quedan tal cual. Con los 25 registros de la PE3
+-- todos los clientes y productos tienen ventas, así que C2 y C3 dan 0 filas.
+-- Para mostrar que el LEFT JOIN ... IS NULL funciona, cargo 2 clientes y
+-- 2 productos DE PRUEBA, sin ventas, marcados como "(PRUEBA)".
+-- No toca el script de la PE3. Se puede correr varias veces (borra y recarga).
+-- =====================================================================
+DELETE FROM clientes  WHERE id_cliente  IN (901, 902);
+DELETE FROM productos WHERE id_producto IN (901, 902);
+GO
+INSERT INTO clientes (id_cliente, nombre, email, ciudad, fecha_registro) VALUES
+    (901, N'Cliente Prueba Uno (PRUEBA)', 'prueba1@mail.com', N'Salta',   '2024-03-20'),
+    (902, N'Cliente Prueba Dos (PRUEBA)', 'prueba2@mail.com', N'Neuquén', '2024-03-25');
+INSERT INTO productos (id_producto, nombre_producto, id_categoria, precio, stock, activo) VALUES
+    (901, N'Webcam HD (PRUEBA)',      2,  75.00, 10, 1),
+    (902, N'Parlante Mini (PRUEBA)',  3,  45.00, 20, 1);
+GO
+
+-- C2 con datos de prueba: clientes sin ventas
+SELECT
+    c.nombre,
+    c.email,
+    c.fecha_registro
+FROM clientes c
+LEFT JOIN ventas v ON c.id_cliente = v.id_cliente
+WHERE v.id_venta IS NULL;
+GO
+-- Hallazgo (prueba): aparecen los 2 clientes de prueba y ninguno de los 5 reales.
+-- La consulta detecta bien a quien se registró y no compró: esa lista va a CRM para primera compra.
+
+-- C3 con datos de prueba: productos sin ventas
+SELECT
+    p.nombre_producto,
+    cat.nombre_categoria                     AS categoria,
+    p.precio
+FROM productos p
+LEFT JOIN ventas v      ON p.id_producto  = v.id_producto
+LEFT JOIN categorias cat ON p.id_categoria = cat.id_categoria
+WHERE v.id_venta IS NULL;
+GO
+-- Hallazgo (prueba): aparecen los 2 productos de prueba (Accesorios y Audio).
+-- Con datos reales, esta lista le dice a Producto qué revisar (precio, stock o sacarlo del catálogo).
