@@ -56,41 +56,42 @@ HAVING COUNT(*) > 1
 ORDER BY total_gastado DESC;
 
 -- ---------------------------------------------------------------------
--- CONSULTA 4 - Facturación mensual vs. promedio mensual general
--- Qué es: el total facturado de cada mes y una etiqueta con CASE WHEN que
---         dice si ese mes está 'Por encima' o 'Por debajo' del promedio
---         mensual general (promedio de los totales de todos los meses).
--- Para qué: detectar rápido qué meses rinden más o menos que lo normal.
--- Nota: agregué un tercer caso ('En el promedio') por si un mes da
---       exactamente igual al promedio; con un solo mes de datos pasa eso.
+-- CONSULTA 4 - Productos por encima o por debajo del promedio
+-- Qué es: el total facturado de cada id_producto y una etiqueta con
+--         CASE WHEN que dice si está 'Por encima' o 'Por debajo' del
+--         promedio por producto (promedio de los totales de cada producto,
+--         no de las filas de ventas).
+-- Para qué: ver qué productos rinden más que el resto y cuáles menos.
+-- Dejo un tercer caso ('En el promedio') por si alguno da justo igual.
 -- ---------------------------------------------------------------------
-WITH facturacion_mensual AS (
+WITH total_por_producto AS (
     SELECT
-        MONTH(fecha_venta)              AS mes,
+        id_producto,
         SUM(cantidad * precio_unitario) AS total_facturado
     FROM ventas
-    GROUP BY MONTH(fecha_venta)
+    GROUP BY id_producto
 )
 SELECT
-    mes,
+    id_producto,
     total_facturado,
     CASE
-        WHEN total_facturado > (SELECT AVG(total_facturado) FROM facturacion_mensual)
+        WHEN total_facturado > (SELECT AVG(total_facturado) FROM total_por_producto)
             THEN 'Por encima'
-        WHEN total_facturado < (SELECT AVG(total_facturado) FROM facturacion_mensual)
+        WHEN total_facturado < (SELECT AVG(total_facturado) FROM total_por_producto)
             THEN 'Por debajo'
         ELSE 'En el promedio'
     END                                 AS comparacion_con_promedio
-FROM facturacion_mensual
-ORDER BY mes;
+FROM total_por_producto
+ORDER BY total_facturado DESC;
 GO
 
 -- ---------------------------------------------------------------------
 -- HALLAZGOS
--- 1) Toda la facturación está concentrada en un solo mes: las 10 ventas son
---    de marzo de 2024 y suman $6.444,00 (10 pedidos, ticket promedio de
---    $644,40). Con un solo mes no se puede ver tendencia ni estacionalidad,
---    y por eso en la consulta 4 marzo da igual al promedio ('En el promedio').
+-- 1) Las 10 ventas son de marzo de 2024 y suman $6.444,00 entre 6 productos,
+--    así que el promedio por producto es $1.074,00. Solo 2 quedan por encima:
+--    la Laptop Pro 15 (id 1, $3.600,00) y el Monitor 4K 27 (id 3, $1.350,00).
+--    Entre los dos hacen el 76,8% de lo facturado. Los otros 4 quedan muy por
+--    debajo, todos entre $360,00 y $390,00.
 -- 2) La Laptop Pro 15 (id_producto 1) es la que sostiene el negocio: factura
 --    $3.600,00, o sea cerca del 56% del total, con apenas 3 unidades. Le sigue
 --    el Monitor 4K 27 (id 3) con $1.350,00. El Mouse Inalámbrico (id 2) es el
